@@ -16,11 +16,11 @@ def navigate_to_next_page(driver):
     selector = "to-next"
     element = driver.find_element(By.CLASS_NAME, selector)
     element.click()
+    time.sleep(1.5)
     return get_current_page_number(driver)
 
 
 def get_current_page_number(driver):
-    time.sleep(1)
     navigation_buttons = driver.find_elements(By.CLASS_NAME, "page-item")
     assert len(navigation_buttons) == 3
     page_number = navigation_buttons[1].text
@@ -50,10 +50,12 @@ def get_table(driver):
 
 
 def get_wishes(wish_url):
-    driver = webdriver.Chrome()
+    options = webdriver.ChromeOptions()
+    options.add_argument("--log-level=3")
+    driver = webdriver.Chrome(options=options)
     driver.minimize_window()
     driver.get(wish_url)
-
+    time.sleep(4)
     current_page_number = get_current_page_number(driver)
     last_page_number = ""
 
@@ -110,8 +112,10 @@ def parse_wish_json(json_data):
 def get_driver():
     options = webdriver.ChromeOptions()
     options.headless = True
+    options.add_argument("--log-level=3")
     driver = webdriver.Chrome(options=options)
     driver.minimize_window()
+
     return driver
 
 
