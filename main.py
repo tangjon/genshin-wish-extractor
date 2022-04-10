@@ -49,7 +49,23 @@ def get_table(driver):
     return res
 
 
-def get_wishes(wish_url):
+def switch_banner_page(driver, banner):
+    options = {
+        "event": 301,
+        "weapon": 302
+    }
+    if banner not in options:
+        raise Exception("Unrecognized banner")
+    banner_id = options[banner]
+    dropdown = driver.find_element(By.CLASS_NAME, "selected-val")
+    dropdown.click()
+    time.sleep(0.5)
+
+    driver.find_element(By.CLASS_NAME, f"item[data-id='{banner_id}']").click()
+    time.sleep(0.5)
+
+
+def get_wishes(wish_url, banner="character"):
     options = webdriver.ChromeOptions()
     options.add_argument("--log-level=3")
     driver = webdriver.Chrome(options=options)
@@ -58,6 +74,9 @@ def get_wishes(wish_url):
     time.sleep(4)
     current_page_number = get_current_page_number(driver)
     last_page_number = ""
+    
+    if banner != "character":
+        switch_banner_page(driver, banner)
 
     wish_list = []
     while current_page_number != last_page_number:
@@ -91,19 +110,18 @@ def parse_wish_json(json_data):
     total_rolls = 0
     five_star_count = 0
     for wish in reversed(json_data):
+        five_star_count += 1
+        total_rolls += 1
         item_type = wish['item_type']
-        item_name = wish['wish_item_name']
-
+        item_name = wish['wish_item_name'].split("(")[0].strip()
         if item_type == "Character":
             if "5" in item_name:
                 print(item_name, ":", five_star_count, "rolls")
                 five_star_count = 0
         elif item_type == "Weapon":
-            if item_name in FIVE_STAR_WEAPON_PREFIXES:
+            if "5" in item_name or item_name in FIVE_STAR_WEAPON_PREFIXES:
                 print(item_name, ":", five_star_count, "rolls")
                 five_star_count = 0
-        five_star_count += 1
-        total_rolls += 1
 
     print("Pity count", ":", five_star_count)
     print("Total rolls in history", ":", total_rolls)
@@ -121,16 +139,25 @@ def get_driver():
 
 if __name__ == '__main__':
     wish_json_data = ""
-    if len(sys.argv) >= 3:
+
+    if len(sys.argv) >= 2:
         command = sys.argv[1]
-        arg = sys.argv[2]
-        if command == "PARSE_URL":
-            wish_json_data = get_wishes(arg)
-            parse_wish_json(wish_json_data)
-        elif command == "PARSE_JSON":
-            with open(arg, 'r') as f:
-                data = json.load(f)
-                parse_wish_json(data)
+        if len(sys.argv) == 2:
+            if command == "PARSE_JSON":
+                with open("wish_data.json", 'r') as f:
+                    data = json.load(f)
+                    parse_wish_json(data)
+        elif len(sys.argv) >= 3:
+            arg = sys.argv[2]
+            if command == "PARSE_URL":
+                wish_json_data = get_wishes(arg)
+                parse_wish_json(wish_json_data)
+            elif command == "BANNER":
+                raw_output = subprocess.check_output('powershell.exe -ExecutionPolicy Bypass -File ./get_wish_link.ps1')
+                url = raw_output.decode()
+                wish_json_data = get_wishes(url, banner=arg)
+                parse_wish_json(wish_json_data)
+
     elif len(sys.argv) == 1:
         raw_output = subprocess.check_output('powershell.exe -ExecutionPolicy Bypass -File ./get_wish_link.ps1')
         url = raw_output.decode()
